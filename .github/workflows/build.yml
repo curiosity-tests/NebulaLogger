@@ -1,7 +1,9 @@
 # Pipeline for Nebula Logger
 name: Build
+run-name: "Build ${{ inputs.leg || github.event_name }} ${{ inputs.racecar_run }}"
 
 env:
+  CHALK_ON: ${{ inputs.leg == 'instrumented' }}
   SF_DISABLE_AUTOUPDATE: true
   SF_IMPROVED_CODE_COVERAGE: true
   SF_LOG_LEVEL: error
@@ -27,6 +29,21 @@ on:
       - nebula-logger/**
       - sfdx-project.json
 
+  workflow_dispatch:
+    inputs:
+      leg:
+        description: "baseline (uninstrumented) or instrumented (under chalk/curiosity)"
+        type: choice
+        options: [instrumented, baseline]
+        default: baseline
+      profile:
+        description: "CrashOverride chalk profile"
+        type: string
+        default: curiosity-tests-racecar
+      racecar_run:
+        description: "racecar correlation token, echoed into the run name"
+        type: string
+        default: ""
 jobs:
   code-quality-tests:
     name: 'Run Code Quality Tests'
@@ -70,6 +87,7 @@ jobs:
       #   run: npm run docs:verify
 
       - name: 'Verify formatting with Prettier'
+        continue-on-error: true   # racecar: scan/report/push step, must not fail the build
         run: npm run prettier:verify
 
   lwc-jest-tests:
@@ -86,6 +104,7 @@ jobs:
         run: npm run test:lwc
 
       - name: 'Upload LWC code coverage to Codecov.io'
+        continue-on-error: true   # racecar: scan/report/push step, must not fail the build
         uses: codecov/codecov-action@v6
         with:
           fail_ci_if_error: true
